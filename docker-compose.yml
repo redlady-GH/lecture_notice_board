@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: flask_app
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/data/schedule.db
+    volumes:
+      - sqlite_data:/data
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - web
+
+volumes:
+  sqlite_data:

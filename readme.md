@@ -1,0 +1,275 @@
+# [실습] Flask + SQLite + Docker로 만드는 프로젝트 일정 관리 보드
+
+4개월 차 초급 개발자 양성과정 학생들을 위한 **[Flask와 SQLite를 활용한 프로젝트 일정 관리 보드 만들기]** 강의 교안입니다.
+
+기존의 단순한 Flask 실행 방식을 넘어, **Docker, Nginx, Gunicorn**을 활용한 **실무 수준의 배포 아키텍처**를 학습할 수 있도록 구성되었습니다.
+
+---
+
+## 1. 개요 및 학습 목표
+
+우리는 지금까지 Flask와 MySQL을 연동하여 게시판을 만들어 보았습니다. 이번 프로젝트에서는 **SQLite**를 사용하여 가볍게 데이터베이스를 구성하고, **Docker**를 이용해 컨테이너 기반으로 애플리케이션을 배포하는 방법을 배웁니다.
+
+**학습 목표:**
+1.  **SQLite와 MySQL의 차이점**을 이해한다.
+2.  **Docker**와 **Docker Compose**를 사용하여 애플리케이션을 컨테이너화한다.
+3.  **Nginx(Web Server)**와 **Gunicorn(WSGI)**을 연동하여 안정적인 서비스 아키텍처를 구축한다.
+4.  **환경 변수(.env)**를 사용하여 민감한 정보를 안전하게 관리하는 방법을 익힌다.
+5.  **Docker Volume**을 통해 컨테이너가 재시작되어도 데이터를 유지하는 방법을 익힌다.
+
+---
+
+## 2. 배포 아키텍처 (Production Architecture)
+
+단순히 `python app.py`로 실행하는 개발 서버와 달리, 실제 서비스 환경은 다음과 같이 구성됩니다.
+
+```mermaid
+graph LR
+    Client(User Browser) --> Nginx(Nginx Container:80)
+    Nginx --> Gunicorn(Flask Container:8000)
+    Gunicorn --> Flask(App)
+    Flask --> SQLite(Volume: /data/schedule.db)
+```
+
+1.  **Nginx**: 사용자의 요청을 가장 먼저 받는 웹 서버입니다. 정적 파일을 처리하거나 보안 설정을 담당하며, 요청을 Gunicorn으로 전달(Reverse Proxy)합니다.
+2.  **Gunicorn**: Python WSGI 서버로, 여러 요청을 동시에 안정적으로 처리할 수 있도록 Flask 앱을 실행합니다.
+3.  **Flask**: 실제 비즈니스 로직을 처리하는 애플리케이션입니다.
+4.  **SQLite**: 파일 기반 데이터베이스로, Docker Volume을 통해 데이터를 영구 저장합니다.
+
+---
+
+## 3. SQLite란 무엇인가? (MySQL과 비교)
+
+| 특징 | MySQL (Server-based) | SQLite (Serverless) |
+| :--- | :--- | :--- |
+| **구조** | 클라이언트 <-> **DB 서버 프로세스** <-> 데이터 파일 | 프로그램 <-> **파일 직접 접근** (`.db`) |
+| **설치** | 별도 설치 필요 (복잡함) | **설치 불필요** (Python 내장) |
+| **동시성** | 다중 사용자 동시 접속에 최적화 | 단일 사용자 또는 적은 트래픽에 적합 |
+| **용도** | 웹 서비스, 대규모 데이터 처리 | 모바일 앱, 임베디드, 프로토타입, 소규모 웹 |
+
+> **핵심:** SQLite는 데이터베이스가 하나의 **파일**로 존재합니다. Docker 환경에서는 이 파일을 컨테이너가 사라져도 유지하기 위해 **Volume** 설정이 필수적입니다.
+
+---
+
+## 4. 프로젝트 구조
+
+```text
+lecture_notice/
+├── .github/            # GitHub 관련 설정
+├── docs/               # 프로젝트 문서 (배포 가이드, 리서치 노트)
+├── nginx/
+│   └── nginx.conf      # Nginx 리버스 프록시 설정
+├── templates/          # HTML 템플릿 파일들
+├── .env.example        # 환경 변수 예시 파일
+├── .gitignore          # Git 제외 파일 목록
+├── app.py              # Flask 애플리케이션 로직
+├── Dockerfile          # Flask 앱 이미지 빌드 설정
+├── docker-compose.yml  # Nginx와 Flask 컨테이너 오케스트레이션
+├── requirements.txt    # Python 의존성 목록
+└── readme.md           # 프로젝트 설명
+```
+
+---
+
+## 5. 실행 방법 (How to Run)
+
+### 5.1. 사전 준비 (Configuration)
+
+프로젝트를 실행하기 전에 환경 변수 파일을 생성해야 합니다.
+
+```bash
+# .env.example 파일을 복사하여 .env 파일 생성
+cp .env.example .env
+
+# .env 파일을 열어 비밀번호 등을 수정 (선택 사항)
+# vi .env
+```
+
+### 5.2. Docker Compose로 실행 (권장)
+
+가장 간편하고 표준적인 실행 방법입니다.
+
+1.  **컨테이너 빌드 및 실행**
+    ```bash
+    docker-compose up -d --build
+    ```
+2.  **접속 확인**
+    브라우저에서 `http://localhost` 로 접속합니다.
+3.  **로그 확인**
+    ```bash
+    docker-compose logs -f
+    ```
+4.  **서비스 중지**
+    ```bash
+    docker-compose down
+    ```
+
+### 5.2. 로컬 Python 환경에서 실행 (개발용)
+
+Docker 없이 개발 테스트를 하려면 다음과 같이 실행합니다.
+
+1.  **의존성 설치**
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  **앱 실행**
+    ```bash
+    python app.py
+    ```
+3.  **접속 확인**
+    브라우저에서 `http://localhost:5000` 으로 접속합니다.
+
+---
+
+## 6. 주요 코드 설명
+
+### 6.1. 데이터베이스 경로 처리 (`app.py`)
+Docker 환경과 로컬 환경 모두에서 작동하도록 환경 변수를 사용합니다.
+
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv() # .env 파일 로드
+
+# 환경 변수 DB_PATH가 있으면 사용하고, 없으면 기본값 'schedule.db' 사용
+DB_PATH = os.environ.get('DB_PATH', 'schedule.db')
+```
+
+### 6.2. 환경 변수 및 보안 (`app.py`)
+비밀번호나 시크릿 키와 같은 민감한 정보는 소스 코드에 하드코딩하지 않고 환경 변수로 관리합니다.
+
+```python
+# .env 파일에서 값을 가져옴
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev_key')
+admin_password = os.environ.get('ADMIN_PASSWORD', 'admin')
+```
+
+### 6.3. Docker Volume 설정 (`docker-compose.yml`)
+SQLite 데이터 파일이 컨테이너 삭제 시 함께 사라지지 않도록 볼륨을 마운트합니다.
+
+```yaml
+services:
+  web:
+    # ...
+    environment:
+      - DB_PATH=/data/schedule.db  # 앱이 참조할 경로
+    volumes:
+      - sqlite_data:/data          # 호스트의 볼륨을 컨테이너의 /data에 연결
+
+volumes:
+  sqlite_data:                     # 도커 볼륨 정의
+```
+
+# 앱 실행 시 1회 수행
+with app.app_context():
+    init_db()
+```
+
+> **주의:** SQLite의 자료형은 MySQL보다 단순합니다. `VARCHAR` 대신 `TEXT`, `INT` 대신 `INTEGER`를 주로 사용합니다.
+
+---
+
+## 5. CRUD 구현 포인트
+
+### 5.1. 조회 (Read) - 카테고리별 그룹화
+
+DB에서 가져온 데이터를 Python 리스트 컴프리헨션이나 딕셔너리를 이용해 가공하는 연습을 해봅시다.
+
+```python
+@app.route('/')
+def index():
+    conn = get_db_connection()
+    # fetchall()은 리스트 안에 Row 객체들을 반환
+    posts = conn.execute('SELECT * FROM posts').fetchall()
+    conn.close()
+    
+    # Python 레벨에서 데이터 가공 (카테고리별 분류)
+    grouped_posts = {}
+    for post in posts:
+        cat = post['category']
+        if cat not in grouped_posts:
+            grouped_posts[cat] = []
+        grouped_posts[cat].append(post)
+            
+    return render_template('index.html', grouped_posts=grouped_posts)
+```
+
+### 5.2. 생성 (Create) - 파라미터 바인딩
+
+SQL 인젝션 공격을 막기 위해 **반드시 파라미터 바인딩**을 사용해야 합니다.
+*   MySQL: `VALUES (%s, %s, %s)`
+*   SQLite: `VALUES (?, ?, ?)` (**물음표 사용**)
+
+```python
+conn.execute('INSERT INTO posts (category, title, content) VALUES (?, ?, ?)',
+             (category, title, content))
+conn.commit()
+```
+
+### 5.3. 수정 (Update)과 삭제 (Delete)
+
+수정과 삭제는 `WHERE` 절을 통해 특정 `id`만 타겟팅합니다.
+
+```python
+# 수정 (UPDATE)
+conn.execute('UPDATE posts SET category = ?, title = ?, content = ? WHERE id = ?',
+             (category, title, content, id))
+
+# 삭제 (DELETE)
+conn.execute('DELETE FROM posts WHERE id = ?', (id,))
+```
+
+---
+
+## 6. 관리자 기능 (Session)
+
+간단한 인증을 위해 Flask의 `session`을 사용합니다. 실제 서비스에서는 DB에 사용자 테이블을 만들고 해시된 비밀번호를 저장해야 하지만, 이번 실습 도구에서는 하드코딩된 비밀번호를 사용합니다.
+
+```python
+@app.route('/login', methods=['POST'])
+def login():
+    if request.form['password'] == 'admin': # 단순 비밀번호 체크
+        session['logged_in'] = True
+        return redirect(url_for('admin'))
+    # ...
+```
+
+---
+
+## 7. 화면 구현 (Jinja2 Template)
+
+Jinja2 템플릿 엔진을 사용하여 줄바꿈(`\n`)이 있는 텍스트를 그대로 보여주기 위해 `<pre>` 태그를 활용합니다.
+
+```html
+<!-- index.html 예시 -->
+{% for cat, posts in grouped_posts.items() %}
+    <h2>{{ cat }}</h2>
+    {% for post in posts %}
+        <div class="card">
+            <h3>{{ post.title }}</h3>
+            <!-- 줄바꿈 보존을 위해 pre 태그 사용 -->
+            <pre>{{ post.content }}</pre>
+        </div>
+    {% endfor %}
+{% endfor %}
+```
+
+---
+
+## 8. 실습 과제
+
+제공된 소스 코드를 실행하여 다음 기능을 직접 확인하고 수정해 보세요.
+
+1.  **초기 데이터 확인:** 앱 실행 후 브라우저에서 '수업 공지', '팀 구성' 데이터가 잘 나오는지 확인합니다.
+2.  **데이터 수정:** 관리자 페이지에 접속(비번: `admin`)하여 'B team'의 팀원 이름을 수정해 봅니다.
+3.  **스키마 변경 (심화):**
+    *   `posts` 테이블에 `created_at` 컬럼(작성일)을 추가해 봅니다.
+    *   (주의: SQLite는 `ALTER TABLE` 기능이 제한적이므로, DB 파일을 삭제하고 `init_db` 코드를 수정한 뒤 재시작하는 것이 가장 빠릅니다.)
+
+## 9. 마치며
+
+이번 실습을 통해 여러분은 **서버가 필요 없는 데이터베이스** 환경을 구축했습니다.
+이 방식은 현업에서 **설정 정보 저장, 로그 관리, 임시 데이터 캐싱, 혹은 모바일 앱 내부 저장소**로 매우 빈번하게 사용됩니다.
+
+MySQL과 SQL 문법은 거의 같지만, 환경 구성이 얼마나 간편해졌는지 체감해 보시기 바랍니다.
