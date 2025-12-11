@@ -104,7 +104,7 @@ cp .env.example .env
     docker-compose down
     ```
 
-### 5.2. 로컬 Python 환경에서 실행 (개발용)
+### 5.3. 로컬 Python 환경에서 실행 (개발용)
 
 Docker 없이 개발 테스트를 하려면 다음과 같이 실행합니다.
 
@@ -161,6 +161,10 @@ volumes:
   sqlite_data:                     # 도커 볼륨 정의
 ```
 
+### 6.4. 데이터베이스 초기화 (`app.py`)
+앱이 시작될 때 테이블이 없으면 자동으로 생성하고 초기 데이터를 주입합니다.
+
+```python
 # 앱 실행 시 1회 수행
 with app.app_context():
     init_db()
@@ -170,9 +174,9 @@ with app.app_context():
 
 ---
 
-## 5. CRUD 구현 포인트
+## 7. CRUD 구현 포인트
 
-### 5.1. 조회 (Read) - 카테고리별 그룹화
+### 7.1. 조회 (Read) - 카테고리별 그룹화
 
 DB에서 가져온 데이터를 Python 리스트 컴프리헨션이나 딕셔너리를 이용해 가공하는 연습을 해봅시다.
 
@@ -195,7 +199,7 @@ def index():
     return render_template('index.html', grouped_posts=grouped_posts)
 ```
 
-### 5.2. 생성 (Create) - 파라미터 바인딩
+### 7.2. 생성 (Create) - 파라미터 바인딩
 
 SQL 인젝션 공격을 막기 위해 **반드시 파라미터 바인딩**을 사용해야 합니다.
 *   MySQL: `VALUES (%s, %s, %s)`
@@ -207,7 +211,7 @@ conn.execute('INSERT INTO posts (category, title, content) VALUES (?, ?, ?)',
 conn.commit()
 ```
 
-### 5.3. 수정 (Update)과 삭제 (Delete)
+### 7.3. 수정 (Update)과 삭제 (Delete)
 
 수정과 삭제는 `WHERE` 절을 통해 특정 `id`만 타겟팅합니다.
 
@@ -222,7 +226,7 @@ conn.execute('DELETE FROM posts WHERE id = ?', (id,))
 
 ---
 
-## 6. 관리자 기능 (Session)
+## 8. 관리자 기능 (Session)
 
 간단한 인증을 위해 Flask의 `session`을 사용합니다. 보안을 위해 비밀번호는 소스 코드에 하드코딩하지 않고 **환경 변수(.env)**를 통해 관리합니다.
 
@@ -240,7 +244,7 @@ def login():
 
 ---
 
-## 7. 화면 구현 (Jinja2 Template)
+## 9. 화면 구현 (Jinja2 Template)
 
 Jinja2 템플릿 엔진을 사용하여 줄바꿈(`\n`)이 있는 텍스트를 그대로 보여주기 위해 `<pre>` 태그를 활용합니다.
 
@@ -260,7 +264,7 @@ Jinja2 템플릿 엔진을 사용하여 줄바꿈(`\n`)이 있는 텍스트를 �
 
 ---
 
-## 8. 실습 과제
+## 10. 실습 과제
 
 제공된 소스 코드를 실행하여 다음 기능을 직접 확인하고 수정해 보세요.
 
@@ -270,7 +274,7 @@ Jinja2 템플릿 엔진을 사용하여 줄바꿈(`\n`)이 있는 텍스트를 �
     *   `posts` 테이블에 `created_at` 컬럼(작성일)을 추가해 봅니다.
     *   (주의: SQLite는 `ALTER TABLE` 기능이 제한적이므로, DB 파일을 삭제하고 `init_db` 코드를 수정한 뒤 재시작하는 것이 가장 빠릅니다.)
 
-## 9. 마치며
+## 11. 마치며
 
 이번 실습을 통해 여러분은 **서버가 필요 없는 데이터베이스** 환경을 구축했습니다.
 이 방식은 현업에서 **설정 정보 저장, 로그 관리, 임시 데이터 캐싱, 혹은 모바일 앱 내부 저장소**로 매우 빈번하게 사용됩니다.
