@@ -228,7 +228,7 @@ conn.execute('DELETE FROM posts WHERE id = ?', (id,))
 
 ## 8. 관리자 기능 (Session)
 
-간단한 인증을 위해 Flask의 `session`을 사용합니다. 보안을 위해 비밀번호는 소스 코드에 하드코딩하지 않고 **환경 변수(.env)**를 통해 관리합니다.
+간단한 인증을 위해 Flask의 `session`을 사용합니다. 보안을 위해 비밀번호는 소스 코드에 하드코딩하지 않고 **환경 변수**(.env)를 통해 관리합니다.
 
 ```python
 @app.route('/login', methods=['POST'])
