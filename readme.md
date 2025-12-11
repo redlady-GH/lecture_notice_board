@@ -224,12 +224,15 @@ conn.execute('DELETE FROM posts WHERE id = ?', (id,))
 
 ## 6. 관리자 기능 (Session)
 
-간단한 인증을 위해 Flask의 `session`을 사용합니다. 실제 서비스에서는 DB에 사용자 테이블을 만들고 해시된 비밀번호를 저장해야 하지만, 이번 실습 도구에서는 하드코딩된 비밀번호를 사용합니다.
+간단한 인증을 위해 Flask의 `session`을 사용합니다. 보안을 위해 비밀번호는 소스 코드에 하드코딩하지 않고 **환경 변수(.env)**를 통해 관리합니다.
 
 ```python
 @app.route('/login', methods=['POST'])
 def login():
-    if request.form['password'] == 'admin': # 단순 비밀번호 체크
+    # 환경 변수에서 비밀번호를 가져와 비교 (기본값: 'admin')
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin')
+    
+    if request.form['password'] == admin_password:
         session['logged_in'] = True
         return redirect(url_for('admin'))
     # ...
@@ -262,7 +265,7 @@ Jinja2 템플릿 엔진을 사용하여 줄바꿈(`\n`)이 있는 텍스트를 �
 제공된 소스 코드를 실행하여 다음 기능을 직접 확인하고 수정해 보세요.
 
 1.  **초기 데이터 확인:** 앱 실행 후 브라우저에서 '수업 공지', '팀 구성' 데이터가 잘 나오는지 확인합니다.
-2.  **데이터 수정:** 관리자 페이지에 접속(비번: `admin`)하여 'B team'의 팀원 이름을 수정해 봅니다.
+2.  **데이터 수정:** 관리자 페이지에 접속하여 'B team'의 팀원 이름을 수정해 봅니다. (비밀번호는 `.env` 파일의 `ADMIN_PASSWORD` 값을 확인하세요.)
 3.  **스키마 변경 (심화):**
     *   `posts` 테이블에 `created_at` 컬럼(작성일)을 추가해 봅니다.
     *   (주의: SQLite는 `ALTER TABLE` 기능이 제한적이므로, DB 파일을 삭제하고 `init_db` 코드를 수정한 뒤 재시작하는 것이 가장 빠릅니다.)
