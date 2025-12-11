@@ -12,11 +12,11 @@
 
 ```mermaid
 graph LR
-    User[사용자] -->|HTTP:80| Nginx[Nginx (Reverse Proxy)]
-    Nginx -->|Proxy Pass:8000| Gunicorn[Gunicorn (WSGI)]
-    Gunicorn -->|WSGI| Flask[Flask App]
-    Flask -->|Read/Write| SQLite[(SQLite DB)]
-    SQLite -.->|Mount| Volume[Docker Volume (/data)]
+    User["사용자"] -->|"HTTP:80"| Nginx["Nginx (Reverse Proxy)"]
+    Nginx -->|"Proxy Pass:8000"| Gunicorn["Gunicorn (WSGI)"]
+    Gunicorn -->|"WSGI"| Flask["Flask App"]
+    Flask -->|"Read/Write"| SQLite[("SQLite DB")]
+    SQLite -.->|"Mount"| Volume["Docker Volume (/data)"]
 ```
 
 *   **Web Server (Nginx)**: 정적 파일 처리 및 리버스 프록시 역할.
