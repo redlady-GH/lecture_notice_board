@@ -25,10 +25,10 @@
 
 ```mermaid
 graph LR
-    Client(User Browser) --> Nginx(Nginx Container:80)
-    Nginx --> Gunicorn(Flask Container:8000)
-    Gunicorn --> Flask(App)
-    Flask --> SQLite(Volume: /data/schedule.db)
+    Client("User Browser") --> Nginx("Nginx Container:80")
+    Nginx --> Gunicorn("Flask Container:8000")
+    Gunicorn --> Flask("App")
+    Flask --> SQLite("Volume: /data/schedule.db")
 ```
 
 1.  **Nginx**: 사용자의 요청을 가장 먼저 받는 웹 서버입니다. 정적 파일을 처리하거나 보안 설정을 담당하며, 요청을 Gunicorn으로 전달(Reverse Proxy)합니다.

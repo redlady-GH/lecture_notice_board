@@ -8,24 +8,24 @@
 ### 2.1. 아키텍처 다이어그램
 ```mermaid
 graph TD
-    Client[Client Browser]
+    Client["Client Browser"]
     subgraph Docker Host
         subgraph Nginx Container
-            Nginx[Nginx Web Server]
+            Nginx["Nginx Web Server"]
         end
         subgraph Flask Container
-            Gunicorn[Gunicorn WSGI]
-            Flask[Flask App]
+            Gunicorn["Gunicorn WSGI"]
+            Flask["Flask App"]
         end
         subgraph Docker Volume
-            SQLite[(schedule.db)]
+            SQLite[("schedule.db")]
         end
     end
 
-    Client -- HTTP/80 --> Nginx
-    Nginx -- Proxy Pass/8000 --> Gunicorn
-    Gunicorn -- WSGI --> Flask
-    Flask -- Read/Write --> SQLite
+    Client -- "HTTP/80" --> Nginx
+    Nginx -- "Proxy Pass/8000" --> Gunicorn
+    Gunicorn -- "WSGI" --> Flask
+    Flask -- "Read/Write" --> SQLite
 ```
 
 ### 2.2. 컴포넌트 정의
