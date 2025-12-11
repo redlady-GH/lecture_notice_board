@@ -40,7 +40,7 @@ def init_db():
 def insert_default_data(conn):
     """요청하신 초기 내용을 DB에 삽입"""
     default_data = [
-        ("전체 일정", "실습 프로젝트 기간", "12월 10일 ~ 1월 5일(6일)"),
+        ("전체 일정", "실습 프로젝트 기간", "12월 10일 ~ 1월 5일"),
         
         ("일일 일정", "12월 2일 화요일 업무", 
 """- 프로젝트 세부 주제 결정을 위한 자료 탐색
@@ -61,11 +61,11 @@ def insert_default_data(conn):
         
         ("팀 구성", "A team", 
 """- 주제: 사용자 리뷰를 활용한 스마트 상권 감성 분석 서비스
-- 팀원: 김상훈, *방효준*, 이정민, 이진영, 최정아"""),
+- 팀원: 팀원 명단 작성하기 """),
         
         ("팀 구성", "B team", 
 """- 주제: AI기반 뉴스 분석을 이용한 주식 투자 어드바이저 서비스
-- 팀원: 백인수, 서동균, *유기훈*, 조수진, 차지훈, 천윤우""")
+- 팀원: 팀원 명단 작성하기""")
     ]
     
     conn.executemany('INSERT INTO posts (category, title, content) VALUES (?, ?, ?)', default_data)
@@ -179,4 +179,5 @@ def edit(id):
     return render_template('edit.html', post=post)
 
 if __name__ == '__main__':
+
     app.run(debug=True, host='0.0.0.0')
