@@ -336,7 +336,33 @@ docker-compose restart nginx
 *   **Backend**: `secrets` 모듈로 생성한 난수 토큰을 세션에 저장하고, POST 요청 시 검증합니다.
 *   **Frontend**: Form 전송 시 hidden input으로 토큰을 함께 전송합니다.
 
-## 12. 마치며
+## 12. (참고) 실제 도메인 및 공인 IP 배포 시 고려사항
+
+본 실습은 내부망(Intranet) 환경을 가정하여 mDNS와 자가 서명 인증서를 사용했습니다. 하지만 실제 서비스를 인터넷에 배포하여 누구나 접속하게 하려면 다음과 같은 변경이 필요합니다.
+
+### 12.1. 도메인 구입 및 DNS 설정
+*   **도메인**: 가비아, AWS Route53, Godaddy 등에서 실제 도메인(예: `example.com`)을 구입해야 합니다.
+*   **DNS 레코드**: 구입한 도메인의 DNS 설정에서 **A 레코드**를 서버의 **공인 IP(Public IP)**로 연결해야 합니다.
+    *   mDNS(`*.local`)는 내부망 전용이므로 인터넷 환경에서는 작동하지 않습니다.
+
+### 12.2. 공인 인증서 발급 (Let's Encrypt)
+자가 서명 인증서(`openssl`)는 브라우저 경고가 뜨므로, 실제 서비스에는 적합하지 않습니다. 무료로 사용할 수 있는 **Let's Encrypt**를 권장합니다.
+
+*   **Certbot 사용**: `openssl` 대신 `certbot` 도구를 사용하여 신뢰할 수 있는 인증서를 발급받습니다.
+*   **Nginx 설정 변경**:
+    ```nginx
+    server_name example.com; # 실제 도메인으로 변경
+    
+    # Let's Encrypt 인증서 경로 예시
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    ```
+
+### 12.3. 네트워크 구성 변화
+*   **mDNS 제거**: 공인 DNS를 사용하므로 `avahi-daemon` 설치 과정은 불필요합니다.
+*   **포트 포워딩**: 서버가 공유기 뒤(사설망)에 있다면, 공유기 설정에서 **80번(HTTP)**과 **443번(HTTPS)** 포트를 서버 IP로 포트 포워딩(Port Forwarding) 해야 외부에서 접속 가능합니다.
+
+## 13. 마치며
 
 이번 실습을 통해 여러분은 **서버가 필요 없는 데이터베이스** 환경을 구축했습니다.
 이 방식은 현업에서 **설정 정보 저장, 로그 관리, 임시 데이터 캐싱, 혹은 모바일 앱 내부 저장소**로 매우 빈번하게 사용됩니다.
