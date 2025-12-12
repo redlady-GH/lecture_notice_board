@@ -55,7 +55,7 @@ graph LR
 
 ```text
 lecture_notice/
-├── .github/            # GitHub 관련 설정
+├── .github/            # GitHub 관련 설정 (Git 제외)
 ├── docs/               # 프로젝트 문서 (배포 가이드, 리서치 노트, 보안 점검)
 ├── nginx/
 │   ├── nginx.conf      # Nginx 리버스 프록시 설정
