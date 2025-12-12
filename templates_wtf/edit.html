@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>게시물 수정</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        input, textarea, select { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        button { background: #28a745; color: white; border: none; padding: 10px 20px; cursor: pointer; }
+        a { text-decoration: none; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>게시물 수정</h1>
+    <p><a href="/admin">← 관리자 목록으로 돌아가기</a></p>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <label>분류 (Category):</label>
+        <input type="text" name="category" list="category_list" value="{{ post.category }}" required>
+        <datalist id="category_list">
+            <option value="전체 일정">
+            <option value="일일 일정">
+            <option value="수업 공지">
+            <option value="팀 구성">
+        </datalist>
+
+        <label>제목 (Title):</label>
+        <input type="text" name="title" value="{{ post.title }}" required>
+
+        <label>내용 (Content):</label>
+        <!-- textarea는 value 속성 대신 태그 사이에 값을 넣습니다 -->
+        <textarea name="content" rows="10" required>{{ post.content }}</textarea>
+        
+        <button type="submit">수정 완료</button>
+    </form>
+</body>
+</html>

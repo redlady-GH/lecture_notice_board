@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>프로젝트 대시보드</title>
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f4f4f9; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .admin-link { float: right; text-decoration: none; color: #666; font-size: 0.9em; }
+        
+        .section { background: white; margin-bottom: 20px; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .category-title { border-bottom: 2px solid #007bff; padding-bottom: 5px; color: #007bff; margin-top: 0; }
+        
+        .card { margin-top: 15px; border-left: 4px solid #ddd; padding-left: 15px; }
+        .card h3 { margin: 0 0 10px 0; font-size: 1.1em; color: #333; }
+        .card pre { white-space: pre-wrap; font-family: inherit; color: #555; line-height: 1.6; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 프로젝트 진행 상황판</h1>
+        </div>
+
+        <!-- 정해진 순서대로 카테고리 출력 -->
+        {% for cat in order %}
+            {% if cat in grouped_posts %}
+            <div class="section">
+                <h2 class="category-title">{{ cat }}</h2>
+                {% for post in grouped_posts[cat] %}
+                    <div class="card">
+                        <h3>{{ post.title }}</h3>
+                        <pre>{{ post.content }}</pre>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endfor %}
+
+        <!-- 그 외 추가된 카테고리 출력 -->
+        {% for cat, posts in grouped_posts.items() %}
+            {% if cat not in order %}
+            <div class="section">
+                <h2 class="category-title">{{ cat }}</h2>
+                {% for post in posts %}
+                    <div class="card">
+                        <h3>{{ post.title }}</h3>
+                        <pre>{{ post.content }}</pre>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</body>
+</html>

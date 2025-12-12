@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>관리자 페이지</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        input, textarea, select { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .delete-btn { color: red; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <h1>관리자 모드</h1>
+    <a href="/">[메인 화면으로]</a> <a href="/logout">[로그아웃]</a>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div style="background:#d4edda; color:#155724; padding:10px; margin:10px 0;">
+                {{ messages[0] }}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <h3>새 항목 추가</h3>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <label>분류 (Category):</label>
+        <!-- 입력 편의를 위한 예시 -->
+        <input type="text" name="category" list="category_list" placeholder="직접 입력하거나 목록 선택" required>
+        <datalist id="category_list">
+            <option value="전체 일정">
+            <option value="일일 일정">
+            <option value="수업 공지">
+            <option value="팀 구성">
+        </datalist>
+
+        <label>제목 (Title):</label>
+        <input type="text" name="title" placeholder="예: 12월 3일 수요일 일정" required>
+
+        <label>내용 (Content):</label>
+        <textarea name="content" rows="6" placeholder="내용을 입력하세요..." required></textarea>
+        
+        <button type="submit">등록</button>
+    </form>
+
+    <h3>등록된 내용 목록</h3>
+    <table>
+        <tr>
+            <th>분류</th>
+            <th>제목</th>
+            <th width="50%">내용 (요약)</th>
+            <th>관리</th>
+        </tr>
+        {% for post in posts %}
+        <tr>
+            <td>{{ post.category }}</td>
+            <td>{{ post.title }}</td>
+            <td>{{ post.content[:30] }}...</td>
+            <td>
+                <a href="/edit/{{ post.id }}" style="color: blue; margin-right: 10px;">수정</a>
+                <form action="{{ url_for('delete', id=post.id) }}" method="post" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="delete-btn" onclick="return confirm('정말 삭제하시겠습니까?')" style="background:none; border:none; cursor:pointer; padding:0; font-size:inherit; font-family:inherit;">삭제</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
