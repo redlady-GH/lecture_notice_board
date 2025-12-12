@@ -1,78 +1,71 @@
-# Flask 배포 아키텍처 리서치 (2025년 기준)
+# [학습자료] Flask 실무 배포 아키텍처 이해하기
 
-> **참고**: 본 리서치 내용을 바탕으로 현재 프로젝트에 **Docker + Nginx + Gunicorn** 아키텍처가 적용되었습니다. (2025-12-11 업데이트)
+이 문서는 우리가 프로젝트에 적용한 **Docker + Nginx + Gunicorn + Flask** 아키텍처가 왜 필요한지, 그리고 각 컴포넌트가 어떤 역할을 하는지 설명하는 학습 자료입니다.
 
-## 1. 결론
-**"Nginx(웹 서버) + Gunicorn(WAS) + Flask(애플리케이션)"** 조합이 여전히 **가장 표준적이고 강력한 권장 사항**입니다.
+## 1. 왜 `python app.py`로 배포하면 안 될까?
 
-`python app.py`로 실행하는 Flask 내장 서버(Werkzeug)는 개발용이므로, 보안 및 성능 이슈로 인해 실제 서비스에서는 절대 사용하지 않습니다.
+우리가 개발할 때는 터미널에서 `python app.py`를 입력하여 Flask 내장 서버(Werkzeug)를 실행했습니다. 하지만 이 방식은 **실제 서비스(Production)** 환경에서는 절대 사용해서는 안 됩니다.
 
-## 2. 최신 배포 트렌드
+### 1.1. Flask 내장 서버의 한계
+1.  **성능 문제**: 기본적으로 한 번에 하나의 요청만 처리하거나, 동시 처리 능력이 매우 떨어집니다. (Single Threaded)
+2.  **보안 취약**: 전문적인 웹 서버가 아니므로, 외부 공격(DDoS, Slowloris 등)에 대한 방어책이 없습니다.
+3.  **기능 부족**: HTTPS(SSL) 적용, 정적 파일 캐싱, 로드 밸런싱 등의 고급 기능을 제공하지 않습니다.
 
-최근 배포 환경은 **"컨테이너화"**(Docker)와 "**클라우드 네이티브**"가 핵심입니다.
+따라서 실무에서는 **전문적인 역할 분담**을 통해 안정적인 서비스를 구축합니다.
 
-1.  **Standard (표준)**: **Docker + Gunicorn + Nginx**
-    *   가장 널리 쓰이는 방식입니다. Flask와 Gunicorn을 하나의 컨테이너로 묶고, 앞단에 Nginx를 두어 리버스 프록시로 사용합니다.
-2.  **Serverless Containers (Cloud Run, Fargate)**:
-    *   AWS Fargate나 Google Cloud Run 같은 관리형 서비스에 배포할 때는 **Gunicorn만 포함된 컨테이너**를 올리면, 클라우드 벤더의 로드밸런서가 Nginx 역할을 대신해주기도 합니다. (하지만 정적 파일 처리를 위해 Nginx를 같이 패키징하기도 함)
-3.  **Async (비동기) 고려 시**:
-    *   Flask 2.0부터 비동기(`async`) 라우트를 지원합니다. 만약 비동기 처리가 핵심이라면 `Gunicorn` 대신 `Hypercorn`이나 `Uvicorn`을 고려할 수 있지만, 일반적인 동기식 Flask 앱이라면 **Gunicorn**이 가장 안정적입니다.
+---
 
-## 3. 각 컴포넌트의 역할 (Why?)
+## 2. 우리가 채택한 아키텍처 (Architecture)
 
-왜 3단계로 나누어 쓰는지 이해하는 것이 중요합니다.
+이 프로젝트는 **"Nginx(웹 서버) + Gunicorn(WAS) + Flask(애플리케이션)"** 조합을 사용하며, 이를 **Docker** 컨테이너로 묶어서 배포합니다.
 
-*   **Nginx (Web Server)**
-    *   **역할**: 문지기. 사용자의 요청을 가장 먼저 받습니다.
-    *   **기능**: SSL(HTTPS) 처리, 정적 파일(이미지, CSS, JS) 직접 전송, 슬로우 클라이언트 공격 방어, 로드 밸런싱.
-    *   **이유**: Python은 정적 파일을 서빙하거나 수많은 연결을 유지하는 데 비효율적입니다. Nginx가 이 무거운 짐을 덜어줍니다.
+```mermaid
+graph LR
+    User((사용자)) -->|"1. 요청 (HTTPS)"| Nginx[Nginx]
+    subgraph Docker Environment
+        Nginx -->|"2. 전달 (HTTP)"| Gunicorn[Gunicorn]
+        Gunicorn -->|"3. 실행"| Flask[Flask App]
+        Flask -->|"4. 쿼리"| DB[(SQLite)]
+    end
+```
 
-*   **Gunicorn (WSGI Server / WAS)**
-    *   **역할**: 번역가. Nginx(HTTP 요청)와 Flask(Python 코드) 사이를 연결합니다.
-    *   **기능**: 여러 개의 프로세스(Worker)를 생성하여 동시에 여러 요청을 처리하게 해줍니다.
-    *   **이유**: Flask 앱 자체는 한 번에 하나의 요청만 처리하거나 동시성 처리가 약합니다. Gunicorn이 멀티 프로세싱을 관리해 줍니다.
+### 2.1. 각 컴포넌트의 역할 (Role)
 
-*   **Flask (Web App)**
-    *   **역할**: 요리사. 실제 비즈니스 로직(DB 조회, 데이터 가공)을 수행합니다.
+| 컴포넌트 | 역할 비유 | 실제 역할 | 왜 필요한가? |
+| :--- | :--- | :--- | :--- |
+| **Nginx** | **문지기/안내원** | Web Server (Reverse Proxy) | HTTPS 암호화 처리, 정적 파일(이미지/CSS) 고속 전송, 보안 방어 |
+| **Gunicorn** | **지배인** | WSGI Server (Middleware) | 여러 개의 Flask 프로세스(Worker)를 관리하여 **동시 접속** 처리 |
+| **Flask** | **요리사** | Web Application | 실제 Python 코드를 실행하여 데이터 처리 및 로직 수행 |
+| **Docker** | **푸드트럭** | Container Platform | 서버 환경(OS, 라이브러리 등)을 통째로 포장하여 어디서든 똑같이 실행되게 함 |
 
-## 4. 추천 구성 및 실행 방법
+---
 
-### A. Gunicorn 설치 및 실행 (필수)
-먼저 `gunicorn`을 설치하고 실행 스크립트를 만듭니다.
+## 3. 상세 기술 설명
+
+### 3.1. WSGI란 무엇인가?
+**WSGI (Web Server Gateway Interface)**는 Python 웹 애플리케이션(Flask, Django)과 웹 서버(Nginx, Apache)가 서로 통신하기 위한 **표준 인터페이스(약속)**입니다.
+*   Nginx는 Python 코드를 직접 이해하지 못합니다.
+*   Gunicorn이 Nginx의 요청을 받아 Python이 이해할 수 있는 형태로 변환(WSGI)하여 Flask에게 넘겨줍니다.
+
+### 3.2. Gunicorn 설정의 의미
+`docker-compose.yml`이나 `Dockerfile`을 보면 다음과 같은 실행 명령어가 있습니다.
 
 ```bash
-# 설치
-pip install gunicorn
-
-# 실행 (기본)
-# -w 4: 워커 프로세스 4개 (보통 CPU 코어 수 * 2 + 1 권장)
-# -b 0.0.0.0:8000: 8000번 포트로 바인딩
-# app:app : app.py 파일의 app 객체를 실행
 gunicorn -w 4 -b 0.0.0.0:8000 app:app
 ```
 
-### B. Nginx 설정 (리버스 프록시)
-Nginx 설정 파일(`nginx.conf` 또는 `sites-available/default`)에 다음 내용을 추가하여 80번 포트 요청을 Gunicorn(8000)으로 넘깁니다.
+*   **`-w 4` (Workers)**: 요리사를 4명 두겠다는 뜻입니다. 동시에 4개의 요청을 처리할 수 있습니다. (보통 CPU 코어 수 * 2 + 1 권장)
+*   **`-b 0.0.0.0:8000` (Bind)**: 8000번 포트에서 요청을 기다리겠다는 뜻입니다.
+*   **`app:app`**: `app.py` 파일 안에 있는 `app` 변수(Flask 객체)를 실행하라는 뜻입니다.
 
-```nginx
-server {
-    listen 80;
-    server_name your_domain.com;
+### 3.3. Nginx의 리버스 프록시 (Reverse Proxy)
+Nginx는 사용자의 요청을 대신 받아서 뒤에 있는 Gunicorn에게 전달합니다. 이를 **리버스 프록시**라고 합니다.
+*   사용자는 내부의 Gunicorn(8000번)에 직접 접근할 수 없습니다.
+*   오직 Nginx(80/443번)를 통해서만 접근 가능하므로 보안이 강화됩니다.
 
-    location / {
-        proxy_pass http://127.0.0.1:8000; # Gunicorn 주소
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
+---
 
-    # 정적 파일은 Nginx가 직접 처리 (성능 향상)
-    location /static {
-        alias /path/to/your/project/static;
-    }
-}
-```
+## 4. 결론
 
-## 5. 요약
-1.  **엔진**: **Gunicorn**을 사용하세요. (가장 안정적이고 레퍼런스가 많음)
-2.  **웹 서버**: **Nginx**를 앞단에 두세요. (보안 및 정적 파일 처리)
-3.  **배포 방식**: 가능하다면 **Docker**로 말아서 배포하는 것이 관리하기 가장 편합니다.
+이 아키텍처는 Python 웹 개발의 **업계 표준(De Facto Standard)**입니다.
+이번 프로젝트를 통해 단순히 코드를 짜는 것을 넘어, **"내 코드가 실제 서버에서 어떻게 안전하게 실행되는지"** 전체 그림을 이해하는 것이 목표입니다.
