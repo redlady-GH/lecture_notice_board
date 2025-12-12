@@ -336,6 +336,8 @@ docker-compose restart nginx
 *   **Backend**: `secrets` 모듈로 생성한 난수 토큰을 세션에 저장하고, POST 요청 시 검증합니다.
 *   **Frontend**: Form 전송 시 hidden input으로 토큰을 함께 전송합니다.
 
+> **[심화 학습]** 표준 라이브러리인 **Flask-WTF**를 사용하여 더 강력한 보안을 적용하는 방법은 **[가이드: Flask-WTF를 이용한 강력한 CSRF 보호 적용](docs/가이드_Flask_WTF_CSRF_적용.md)** 문서를 참고하세요.
+
 ## 12. (참고) 실제 도메인 및 공인 IP 배포 시 고려사항
 
 본 실습은 내부망(Intranet) 환경을 가정하여 mDNS와 자가 서명 인증서를 사용했습니다. 하지만 실제 서비스를 인터넷에 배포하여 누구나 접속하게 하려면 다음과 같은 변경이 필요합니다.
