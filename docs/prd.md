@@ -8,20 +8,22 @@
     *   **관리자 (Admin)**: 공지사항 등록, 수정, 삭제 (CRUD).
 
 ## 2. 시스템 아키텍처
-본 프로젝트는 안정성과 배포 편의성을 위해 컨테이너 기반 아키텍처를 채택합니다.
+본 프로젝트는 안정성과 배포 편의성을 위해 컨테이너 기반 아키텍처를 채택하며, HTTPS 및 mDNS를 지원합니다.
 
 ```mermaid
 graph LR
-    User["사용자"] -->|"HTTP:80"| Nginx["Nginx (Reverse Proxy)"]
+    User["사용자"] -->|"HTTPS:443"| Nginx["Nginx (Reverse Proxy)"]
+    User -->|"HTTP:80"| Nginx
     Nginx -->|"Proxy Pass:8000"| Gunicorn["Gunicorn (WSGI)"]
     Gunicorn -->|"WSGI"| Flask["Flask App"]
     Flask -->|"Read/Write"| SQLite[("SQLite DB")]
     SQLite -.->|"Mount"| Volume["Docker Volume (/data)"]
 ```
 
-*   **Web Server (Nginx)**: 정적 파일 처리 및 리버스 프록시 역할.
+*   **Web Server (Nginx)**: SSL/TLS 종단(Termination), HTTP->HTTPS 리다이렉트, 정적 파일 처리.
 *   **WAS (Gunicorn + Flask)**: 애플리케이션 로직 수행.
 *   **Database (SQLite)**: 경량 파일 데이터베이스 사용, Docker Volume을 통한 데이터 영속성 보장.
+*   **Network**: mDNS(`*.local`)를 통한 내부망 도메인 접속 지원.
 
 ## 3. 기술 스택
 | 구분 | 기술 | 비고 |
@@ -75,17 +77,19 @@ graph LR
 | `POST` | `/create` | 게시글 생성 | 관리자 |
 | `GET` | `/edit/<id>` | 게시글 수정 폼 조회 | 관리자 |
 | `POST` | `/edit/<id>` | 게시글 수정 처리 | 관리자 |
-| `POST` | `/delete/<id>` | 게시글 삭제 처리 | 관리자 |
+| `POST` | `/delete/<id>` | 게시글 삭제 처리 (CSRF 보호) | 관리자 |
 | `GET` | `/logout` | 관리자 로그아웃 | 관리자 |
 
 ## 7. 환경 변수 및 보안 설정 (.env)
-보안상 민감한 정보는 소스 코드가 아닌 환경 변수로 관리합니다.
+보안상 민감한 정보는 소스 코드가 아닌 환경 변수로 관리하며, HTTPS 및 CSRF 보안이 적용됩니다.
 
-*   `FLASK_SECRET_KEY`: Flask 세션 암호화 키
+*   `FLASK_SECRET_KEY`: Flask 세션 암호화 및 CSRF 토큰 생성 키
 *   `ADMIN_PASSWORD`: 관리자 페이지 접속 비밀번호
 *   `DB_PATH`: SQLite 데이터베이스 파일 경로 (Docker: `/data/schedule.db`)
 
 ## 8. 배포 및 운영 (Deployment)
 *   **Docker Compose**를 사용하여 `web`(Flask)과 `nginx` 컨테이너를 한 번에 실행한다.
+*   **HTTPS 적용**: Self-Signed Certificate를 사용하여 통신을 암호화한다.
+*   **mDNS 지원**: 내부망에서 고정된 도메인 이름(`*.local`)으로 접속 가능하도록 지원한다.
 *   `restart: always` 정책을 적용하여 서버 재부팅 시 자동 실행되도록 한다.
 *   데이터베이스 파일은 `sqlite_data` 볼륨에 저장하여 컨테이너 재배포 시에도 데이터가 유실되지 않도록 한다.

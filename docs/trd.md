@@ -11,7 +11,7 @@ graph TD
     Client["Client Browser"]
     subgraph Docker Host
         subgraph Nginx Container
-            Nginx["Nginx Web Server"]
+            Nginx["Nginx Web Server (SSL)"]
         end
         subgraph Flask Container
             Gunicorn["Gunicorn WSGI"]
@@ -22,17 +22,19 @@ graph TD
         end
     end
 
-    Client -- "HTTP/80" --> Nginx
+    Client -- "HTTPS/443" --> Nginx
+    Client -- "HTTP/80 (Redirect)" --> Nginx
     Nginx -- "Proxy Pass/8000" --> Gunicorn
     Gunicorn -- "WSGI" --> Flask
     Flask -- "Read/Write" --> SQLite
 ```
 
 ### 2.2. 컴포넌트 정의
-1.  **Nginx (Reverse Proxy)**
-    *   **Role**: 외부 요청(Port 80)을 수신하여 내부 WAS(Port 8000)로 전달.
+1.  **Nginx (Reverse Proxy & SSL Termination)**
+    *   **Role**: HTTPS(443) 요청 처리 및 SSL 복호화, HTTP(80) 요청을 HTTPS로 리다이렉트.
     *   **Image**: `nginx:latest`
     *   **Config**: `nginx/nginx.conf` 마운트 (`/etc/nginx/conf.d/default.conf`)
+    *   **SSL**: Self-Signed Certificate (`nginx/ssl/`) 마운트.
 2.  **Application Server (WAS)**
     *   **Role**: 비즈니스 로직 처리 및 HTML 렌더링.
     *   **Stack**: Python 3.9, Flask, Gunicorn.
@@ -47,6 +49,7 @@ graph TD
 ### 3.1. Backend
 *   **Language**: Python 3.9-slim (경량화된 Docker 이미지 사용)
 *   **Web Framework**: Flask 2.x
+*   **Security**: `secrets` 모듈 (CSRF Token 생성), `werkzeug.exceptions.abort`
 *   **WSGI Server**: Gunicorn
     *   **Workers**: 4개 (동시 요청 처리 능력 확보)
     *   **Bind**: 0.0.0.0:8000
@@ -85,13 +88,18 @@ graph TD
 ### 5.1. 환경 변수 관리
 민감 정보는 소스 코드에서 분리하여 `.env` 파일로 관리하며, Docker 컨테이너 실행 시 주입됩니다.
 *   **필수 변수**:
-    *   `FLASK_SECRET_KEY`: 세션 서명용 키.
+    *   `FLASK_SECRET_KEY`: 세션 서명 및 CSRF 토큰 생성용 키.
     *   `ADMIN_PASSWORD`: 관리자 로그인 비밀번호.
     *   `DB_PATH`: 데이터베이스 파일 경로 (운영 환경: `/data/schedule.db`).
 
 ### 5.2. 네트워크 보안
-*   **Port Exposure**: 오직 Nginx의 **80번 포트**만 호스트(외부)에 노출됩니다.
+*   **Port Exposure**: 오직 Nginx의 **80번(HTTP)**과 **443번(HTTPS)** 포트만 호스트(외부)에 노출됩니다.
 *   **Internal Communication**: Flask(8000)는 내부 네트워크에서만 접근 가능하여 직접적인 외부 공격을 차단합니다.
+*   **SSL/TLS**: Self-Signed Certificate를 적용하여 전송 계층 암호화를 수행합니다.
+
+### 5.3. 애플리케이션 보안
+*   **CSRF Protection**: 중요 상태 변경 요청(삭제 등)에 대해 CSRF Token 검증을 수행합니다.
+*   **Secure Cookies**: `SameSite=Lax`, `Secure`, `HttpOnly` 속성을 적용하여 쿠키 탈취 및 CSRF 위험을 완화합니다.
 
 ## 6. 인터페이스 설계 (Interface Design)
 
