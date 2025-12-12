@@ -93,7 +93,7 @@ graph TD
     *   `DB_PATH`: 데이터베이스 파일 경로 (운영 환경: `/data/schedule.db`).
 
 ### 5.2. 네트워크 보안
-*   **Port Exposure**: 오직 Nginx의 **80번(HTTP)**과 **443번(HTTPS)** 포트만 호스트(외부)에 노출됩니다.
+*   **Port Exposure**: 오직 Nginx의 **80번**(HTTP)과 **443번**(HTTPS) 포트만 호스트(외부)에 노출됩니다. 
 *   **Internal Communication**: Flask(8000)는 내부 네트워크에서만 접근 가능하여 직접적인 외부 공격을 차단합니다.
 *   **SSL/TLS**: Self-Signed Certificate를 적용하여 전송 계층 암호화를 수행합니다.
 
