@@ -43,7 +43,7 @@ graph LR
 ## 3. 상세 기술 설명
 
 ### 3.1. WSGI란 무엇인가?
-**WSGI (Web Server Gateway Interface)**는 Python 웹 애플리케이션(Flask, Django)과 웹 서버(Nginx, Apache)가 서로 통신하기 위한 **표준 인터페이스(약속)**입니다.
+**WSGI**(Web Server Gateway Interface)는 Python 웹 애플리케이션(Flask, Django)과 웹 서버(Nginx, Apache)가 서로 통신하기 위한 **표준 인터페이스**입니다.
 *   Nginx는 Python 코드를 직접 이해하지 못합니다.
 *   Gunicorn이 Nginx의 요청을 받아 Python이 이해할 수 있는 형태로 변환(WSGI)하여 Flask에게 넘겨줍니다.
 
