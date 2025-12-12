@@ -56,9 +56,10 @@ graph LR
 ```text
 lecture_notice/
 ├── .github/            # GitHub 관련 설정
-├── docs/               # 프로젝트 문서 (배포 가이드, 리서치 노트)
+├── docs/               # 프로젝트 문서 (배포 가이드, 리서치 노트, 보안 점검)
 ├── nginx/
-│   └── nginx.conf      # Nginx 리버스 프록시 설정
+│   ├── nginx.conf      # Nginx 리버스 프록시 설정
+│   └── ssl/            # SSL 인증서 저장소 (Git 제외)
 ├── templates/          # HTML 템플릿 파일들
 ├── .env.example        # 환경 변수 예시 파일
 ├── .gitignore          # Git 제외 파일 목록
@@ -73,28 +74,59 @@ lecture_notice/
 
 ## 5. 실행 방법 (How to Run)
 
-### 5.1. 사전 준비 (Configuration)
+### 5.1. 네트워크 환경 구성 (mDNS) - 선택 사항
+이 프로젝트는 내부망(Local Network)에서 IP 주소가 바뀌더라도 고정된 도메인 이름으로 서버에 접속하기 위해 **mDNS(Multicast DNS)**를 활용합니다.
 
-프로젝트를 실행하기 전에 환경 변수 파일을 생성해야 합니다.
+*   **사용 이유**: 공유기를 사용하는 일반적인 환경(DHCP)에서는 서버 재부팅 시 IP가 바뀔 수 있어 접속이 불편합니다. mDNS를 설정하면 `서버이름.local`이라는 고정된 주소로 항상 접속할 수 있습니다.
+*   **설치 방법 (Ubuntu/Debian 기준)**:
+    ```bash
+    # 1. 현재 서버의 호스트 이름 확인
+    hostname
+    # (예: 결과가 'myserver'라면 접속 주소는 'https://myserver.local'이 됩니다.)
 
-```bash
-# .env.example 파일을 복사하여 .env 파일 생성
-cp .env.example .env
+    # 2. Avahi 데몬(mDNS 서비스) 설치 및 실행
+    sudo apt update
+    sudo apt install avahi-daemon -y
+    sudo systemctl enable --now avahi-daemon
+    ```
 
-# .env 파일을 열어 비밀번호 등을 수정 (선택 사항)
-# vi .env
-```
+### 5.2. 사전 준비 (Prerequisites)
+*   **Docker** & **Docker Compose** 설치
+*   **OpenSSL** (SSL 인증서 생성용)
 
-### 5.2. Docker Compose로 실행 (권장)
+### 5.3. 환경 설정 및 인증서 생성 (필수)
 
-가장 간편하고 표준적인 실행 방법입니다.
+프로젝트 실행 전, 환경 변수 설정과 SSL 인증서 생성이 반드시 필요합니다.
+
+1.  **환경 변수 설정**
+    ```bash
+    cp .env.example .env
+    # 필요 시 .env 파일을 열어 비밀번호 수정
+    ```
+
+2.  **SSL 인증서 생성 (Self-Signed)**
+    Nginx가 HTTPS를 처리하기 위해 인증서가 필요합니다.
+    아래 명령어의 `myserver` 부분을 **여러분의 실제 호스트 이름**으로 변경하여 실행하세요.
+    ```bash
+    mkdir -p nginx/ssl
+    
+    # 'myserver'를 실제 hostname으로 변경하세요 (예: n100 -> n100.local)
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+      -keyout nginx/ssl/server.key \
+      -out nginx/ssl/server.crt \
+      -subj "/CN=myserver.local" \
+      -addext "subjectAltName=DNS:myserver.local,DNS:*.local,IP:127.0.0.1"
+    ```
+
+### 5.4. Docker Compose로 실행 (권장)
 
 1.  **컨테이너 빌드 및 실행**
     ```bash
     docker-compose up -d --build
     ```
 2.  **접속 확인**
-    브라우저에서 `http://localhost` 로 접속합니다.
+    *   브라우저에서 `https://myserver.local` (여러분의 호스트 이름) 로 접속합니다.
+    *   자가 서명 인증서이므로 "안전하지 않음" 경고가 뜰 수 있습니다. (고급 -> 이동 선택)
 3.  **로그 확인**
     ```bash
     docker-compose logs -f
@@ -104,7 +136,7 @@ cp .env.example .env
     docker-compose down
     ```
 
-### 5.3. 로컬 Python 환경에서 실행 (개발용)
+### 5.5. 로컬 Python 환경에서 실행 (개발용)
 
 Docker 없이 개발 테스트를 하려면 다음과 같이 실행합니다.
 
@@ -298,6 +330,11 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 # 컨테이너 재시작
 docker-compose restart nginx
 ```
+
+### 11.3. CSRF 보호 (Cross-Site Request Forgery)
+게시글 삭제와 같은 중요 기능에는 CSRF 공격을 방지하기 위해 **CSRF Token** 검증 로직이 적용되어 있습니다.
+*   **Backend**: `secrets` 모듈로 생성한 난수 토큰을 세션에 저장하고, POST 요청 시 검증합니다.
+*   **Frontend**: Form 전송 시 hidden input으로 토큰을 함께 전송합니다.
 
 ## 12. 마치며
 
