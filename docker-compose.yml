@@ -11,6 +11,8 @@ services:
       - DB_PATH=/data/schedule.db
     volumes:
       - sqlite_data:/data
+      - ./:/app
+    command: gunicorn -w 4 -b 0.0.0.0:8000 --reload app:app
     expose:
       - "8000"
 

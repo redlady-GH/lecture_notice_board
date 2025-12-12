@@ -1,6 +1,7 @@
 import sqlite3
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+import secrets
+from flask import Flask, render_template, request, redirect, url_for, session, flash, abort
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,6 +15,11 @@ app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS에서만 쿠키 전송
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 DB_PATH = os.environ.get('DB_PATH', 'schedule.db')
+
+@app.before_request
+def manage_csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(16)
 
 # --- 데이터베이스 관리 함수 ---
 
@@ -141,10 +147,15 @@ def logout():
     session.pop('logged_in', None)
     return redirect(url_for('index'))
 
-@app.route('/delete/<int:id>')
+@app.route('/delete/<int:id>', methods=['POST'])
 def delete(id):
     if 'logged_in' not in session:
         return redirect(url_for('login'))
+    
+    # CSRF Token 검증
+    token = request.form.get('csrf_token')
+    if not token or token != session.get('csrf_token'):
+        abort(403) # Forbidden
         
     conn = get_db_connection()
     conn.execute('DELETE FROM posts WHERE id = ?', (id,))

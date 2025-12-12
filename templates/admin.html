@@ -60,7 +60,10 @@
             <td>{{ post.content[:30] }}...</td>
             <td>
                 <a href="/edit/{{ post.id }}" style="color: blue; margin-right: 10px;">수정</a>
-                <a href="/delete/{{ post.id }}" class="delete-btn" onclick="return confirm('삭제하시겠습니까?')">삭제</a>
+                <form action="{{ url_for('delete', id=post.id) }}" method="post" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
+                    <button type="submit" class="delete-btn" onclick="return confirm('정말 삭제하시겠습니까?')" style="background:none; border:none; cursor:pointer; padding:0; font-size:inherit; font-family:inherit;">삭제</button>
+                </form>
             </td>
         </tr>
         {% endfor %}
