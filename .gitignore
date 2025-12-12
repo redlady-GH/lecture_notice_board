@@ -19,6 +19,12 @@ schedule.db
 .vscode/
 .idea/
 
+# SSL Certificates
+nginx/ssl/
+*.key
+*.crt
+*.pem
+
 # OS
 .DS_Store
 Thumbs.db
