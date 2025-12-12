@@ -7,6 +7,12 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key')  # 세션 관리를 위한 비밀키
+
+# 보안 설정 (HTTPS 적용 시 필수)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS에서만 쿠키 전송
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 DB_PATH = os.environ.get('DB_PATH', 'schedule.db')
 
 # --- 데이터베이스 관리 함수 ---

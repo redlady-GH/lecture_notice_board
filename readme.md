@@ -25,15 +25,15 @@
 
 ```mermaid
 graph LR
-    Client("User Browser") --> Nginx("Nginx Container:80")
-    Nginx --> Gunicorn("Flask Container:8000")
+    Client("User Browser") -->|"HTTPS:443"| Nginx("Nginx Container")
+    Nginx -->|"HTTP:8000"| Gunicorn("Flask Container")
     Gunicorn --> Flask("App")
     Flask --> SQLite("Volume: /data/schedule.db")
 ```
 
-1.  **Nginx**: 사용자의 요청을 가장 먼저 받는 웹 서버입니다. 정적 파일을 처리하거나 보안 설정을 담당하며, 요청을 Gunicorn으로 전달(Reverse Proxy)합니다.
+1.  **Nginx**: 사용자의 요청을 가장 먼저 받는 웹 서버입니다. **HTTPS(443)** 요청을 처리하고 **HTTP(80)** 요청을 HTTPS로 리다이렉트합니다.
 2.  **Gunicorn**: Python WSGI 서버로, 여러 요청을 동시에 안정적으로 처리할 수 있도록 Flask 앱을 실행합니다.
-3.  **Flask**: 실제 비즈니스 로직을 처리하는 애플리케이션입니다.
+3.  **Flask**: 실제 비즈니스 로직을 처리하는 애플리케이션입니다. **Secure Cookie** 설정을 통해 세션 보안을 강화했습니다.
 4.  **SQLite**: 파일 기반 데이터베이스로, Docker Volume을 통해 데이터를 영구 저장합니다.
 
 ---
@@ -274,7 +274,32 @@ Jinja2 템플릿 엔진을 사용하여 줄바꿈(`\n`)이 있는 텍스트를 �
     *   `posts` 테이블에 `created_at` 컬럼(작성일)을 추가해 봅니다.
     *   (주의: SQLite는 `ALTER TABLE` 기능이 제한적이므로, DB 파일을 삭제하고 `init_db` 코드를 수정한 뒤 재시작하는 것이 가장 빠릅니다.)
 
-## 11. 마치며
+## 11. 보안 및 HTTPS 설정 (Security)
+
+이 프로젝트는 내부망 환경에서의 보안을 위해 **Self-Signed Certificate(자가 서명 인증서)**를 사용한 HTTPS를 적용했습니다.
+
+### 11.1. 브라우저 경고창 처리
+자가 서명 인증서를 사용하므로 브라우저 접속 시 **"주의 요함"** 또는 **"안전하지 않음"** 경고가 뜹니다. 이는 인증서 발급 기관(CA)이 공인된 곳이 아니기 때문이며, 내부망 통신 암호화 자체는 정상적으로 동작합니다.
+*   **Chrome/Edge**: `고급` 버튼 클릭 -> `localhost(으)로 이동(안전하지 않음)` 클릭
+
+### 11.2. IP 주소 및 mDNS(.local) 지원 인증서 재발급하기
+기본 설정은 `localhost`와 `*.local` 도메인을 지원하도록 되어 있습니다.
+만약 특정 IP(예: 192.168.0.10)나 특정 mDNS 이름(예: myserver.local)을 명시하여 인증서를 새로 만들려면 아래 명령어를 사용하세요.
+
+```bash
+# 예: 서버 IP가 192.168.0.10 이고, mDNS 이름이 myserver.local 인 경우
+mkdir -p nginx/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/ssl/server.key \
+  -out nginx/ssl/server.crt \
+  -subj "/CN=myserver.local" \
+  -addext "subjectAltName=DNS:myserver.local,DNS:*.local,IP:192.168.0.10"
+
+# 컨테이너 재시작
+docker-compose restart nginx
+```
+
+## 12. 마치며
 
 이번 실습을 통해 여러분은 **서버가 필요 없는 데이터베이스** 환경을 구축했습니다.
 이 방식은 현업에서 **설정 정보 저장, 로그 관리, 임시 데이터 캐싱, 혹은 모바일 앱 내부 저장소**로 매우 빈번하게 사용됩니다.
